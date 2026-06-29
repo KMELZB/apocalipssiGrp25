@@ -91,7 +91,7 @@ def test_logout_invalidates_token(client, user):
     # Le token n'existe plus
     assert not Token.objects.filter(key=token.key).exists()
 
-    
+
 def test_signup_rejects_short_password(client):
     response = client.post(
         "/api/accounts/signup/",
