@@ -90,3 +90,31 @@ def test_logout_invalidates_token(client, user):
     assert response.status_code == 204
     # Le token n'existe plus
     assert not Token.objects.filter(key=token.key).exists()
+
+    
+def test_signup_rejects_short_password(client):
+    response = client.post(
+        "/api/accounts/signup/",
+        {
+            "email": "short@test.com",
+            "password": "123",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "password" in response.data
+
+
+def test_signup_rejects_duplicate_email(client, user):
+    response = client.post(
+        "/api/accounts/signup/",
+        {
+            "email": "alice@test.com",
+            "password": "motdepasse123",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "email" in response.data
