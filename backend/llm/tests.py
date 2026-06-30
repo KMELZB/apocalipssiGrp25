@@ -2,6 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from rest_framework.test import APIClient
 
@@ -68,3 +69,24 @@ def test_generate_quiz_requires_auth():
         format="multipart",
     )
     assert response.status_code in (401, 403)
+
+
+@override_settings(LLM_BACKEND="mock")
+def test_generate_quiz_rejects_non_pdf_file(auth_client):
+    fake_file = SimpleUploadedFile(
+        "cours.txt",
+        b"contenu de test",
+        content_type="text/plain",
+    )
+
+    response = auth_client.post(
+        "/api/llm/generate-quiz/",
+        {
+            "title": "Mauvais format",
+            "pdf": fake_file,
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 400
+    assert "pdf" in response.data
