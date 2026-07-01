@@ -49,8 +49,8 @@ Format de sortie :
 def build_user_prompt(source_text: str, title: str) -> str:
     """Construit le message utilisateur (cours + consigne finale)."""
     # COUCHE 2 : Sanitization (Nettoyage des balises cachées HTML/Markdown)
-    clean_input = re.sub(r'<[^>]*>', '', source_text)
-    clean_input = clean_input.replace('<!--', '').replace('-->', '')
+    clean_input = re.sub(r"<[^>]*>", "", source_text)
+    clean_input = clean_input.replace("<!--", "").replace("-->", "")
     truncated = clean_input[:MAX_SOURCE_CHARS]
     return (
         f"TITRE DU COURS : {title}\n\n" f"COURS :\n{truncated}\n\n" f"GÉNÈRE LE JSON MAINTENANT :"

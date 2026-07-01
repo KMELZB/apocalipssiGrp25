@@ -304,24 +304,28 @@ class ExportDataView(APIView):
         fmt = request.query_params.get("format", "json")
 
         quizzes_data = []
-        for quiz in Quiz.objects.filter(user=user).prefetch_related("questions").order_by("-created_at"):
-            quizzes_data.append({
-                "id": quiz.id,
-                "title": quiz.title,
-                "score": quiz.score,
-                "created_at": quiz.created_at.isoformat(),
-                "updated_at": quiz.updated_at.isoformat(),
-                "questions": [
-                    {
-                        "index": q.index,
-                        "prompt": q.prompt,
-                        "options": q.options,
-                        "correct_index": q.correct_index,
-                        "selected_index": q.selected_index,
-                    }
-                    for q in quiz.questions.all()
-                ],
-            })
+        for quiz in (
+            Quiz.objects.filter(user=user).prefetch_related("questions").order_by("-created_at")
+        ):
+            quizzes_data.append(
+                {
+                    "id": quiz.id,
+                    "title": quiz.title,
+                    "score": quiz.score,
+                    "created_at": quiz.created_at.isoformat(),
+                    "updated_at": quiz.updated_at.isoformat(),
+                    "questions": [
+                        {
+                            "index": q.index,
+                            "prompt": q.prompt,
+                            "options": q.options,
+                            "correct_index": q.correct_index,
+                            "selected_index": q.selected_index,
+                        }
+                        for q in quiz.questions.all()
+                    ],
+                }
+            )
 
         export = {
             "exported_at": timezone.now().isoformat(),
@@ -338,31 +342,47 @@ class ExportDataView(APIView):
         content_json = json.dumps(export, ensure_ascii=False, indent=2)
         file_hash = hashlib.sha256(content_json.encode()).hexdigest()
         now = timezone.now()
-        DataRequest.objects.create(user=user, status="answered", answered_at=now, file_hash=file_hash)
+        DataRequest.objects.create(
+            user=user, status="answered", answered_at=now, file_hash=file_hash
+        )
         timestamp = now.strftime("%Y%m%d_%H%M%S")
 
         if fmt == "csv":
             output = io.StringIO()
             writer = csv.writer(output)
-            writer.writerow([
-                "quiz_id", "titre", "score", "créé_le",
-                "question", "option_0", "option_1", "option_2", "option_3",
-                "bonne_réponse", "réponse_donnée",
-            ])
+            writer.writerow(
+                [
+                    "quiz_id",
+                    "titre",
+                    "score",
+                    "créé_le",
+                    "question",
+                    "option_0",
+                    "option_1",
+                    "option_2",
+                    "option_3",
+                    "bonne_réponse",
+                    "réponse_donnée",
+                ]
+            )
             for quiz in quizzes_data:
                 for q in quiz["questions"]:
-                    writer.writerow([
-                        quiz["id"],
-                        quiz["title"],
-                        quiz["score"] if quiz["score"] is not None else "",
-                        quiz["created_at"],
-                        q["prompt"],
-                        *q["options"],
-                        q["correct_index"],
-                        q["selected_index"] if q["selected_index"] is not None else "",
-                    ])
+                    writer.writerow(
+                        [
+                            quiz["id"],
+                            quiz["title"],
+                            quiz["score"] if quiz["score"] is not None else "",
+                            quiz["created_at"],
+                            q["prompt"],
+                            *q["options"],
+                            q["correct_index"],
+                            q["selected_index"] if q["selected_index"] is not None else "",
+                        ]
+                    )
             response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
-            response["Content-Disposition"] = f'attachment; filename="edututor_export_{timestamp}.csv"'
+            response["Content-Disposition"] = (
+                f'attachment; filename="edututor_export_{timestamp}.csv"'
+            )
             return response
 
         response = HttpResponse(content_json, content_type="application/json; charset=utf-8")

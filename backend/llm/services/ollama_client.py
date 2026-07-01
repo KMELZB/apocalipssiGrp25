@@ -33,7 +33,7 @@ class OllamaLLMClient(LLMClient):
 
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_user_prompt(source_text, title)}
+            {"role": "user", "content": build_user_prompt(source_text, title)},
         ]
 
         max_retries = 2
