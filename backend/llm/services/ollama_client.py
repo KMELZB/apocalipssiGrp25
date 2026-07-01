@@ -12,7 +12,7 @@ import requests
 from django.conf import settings
 
 from .base import LLMClient, LLMError
-from .quiz_prompt import build_full_prompt, parse_and_validate_quiz
+from .quiz_prompt import parse_and_validate_quiz
 
 
 class OllamaLLMClient(LLMClient):
@@ -30,7 +30,7 @@ class OllamaLLMClient(LLMClient):
 
     def generate_quiz(self, source_text: str, title: str) -> list[dict]:
         from .quiz_prompt import SYSTEM_PROMPT, build_user_prompt
-        
+
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": build_user_prompt(source_text, title)}

@@ -1,8 +1,8 @@
 import pytest
-from django.urls import reverse
-from rest_framework.test import APIClient
 from django.contrib.auth.models import User
 from django.test import override_settings
+from django.urls import reverse
+from rest_framework.test import APIClient
 
 pytestmark = pytest.mark.django_db
 
