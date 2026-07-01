@@ -11,11 +11,17 @@ Endpoints d'authentification (Lot 3 : email-identifiant + validation + reset).
     POST /api/accounts/password-reset/confirm/   — définir le nouveau mot de passe
 """
 
+import csv
+import hashlib
+import io
+import json
 import logging
 
 from django.contrib.auth import login as django_login
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth.models import User
+from django.http import HttpResponse
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.authtoken.models import Token
@@ -278,6 +284,90 @@ class ProfileView(APIView):
         django_logout(request)
         user.delete()  # supprime aussi le Profile (on_delete=CASCADE)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ExportDataView(APIView):
+    """Export RGPD Art. 15 — toutes les données personnelles du user connecté.
+
+    GET /api/accounts/me/export/          → fichier JSON
+    GET /api/accounts/me/export/?format=csv → fichier CSV
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from quizzes.models import Quiz
+
+        from .models import DataRequest
+
+        user = request.user
+        fmt = request.query_params.get("format", "json")
+
+        quizzes_data = []
+        for quiz in Quiz.objects.filter(user=user).prefetch_related("questions").order_by("-created_at"):
+            quizzes_data.append({
+                "id": quiz.id,
+                "title": quiz.title,
+                "score": quiz.score,
+                "created_at": quiz.created_at.isoformat(),
+                "updated_at": quiz.updated_at.isoformat(),
+                "questions": [
+                    {
+                        "index": q.index,
+                        "prompt": q.prompt,
+                        "options": q.options,
+                        "correct_index": q.correct_index,
+                        "selected_index": q.selected_index,
+                    }
+                    for q in quiz.questions.all()
+                ],
+            })
+
+        export = {
+            "exported_at": timezone.now().isoformat(),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "date_joined": user.date_joined.isoformat(),
+            },
+            "quizzes": quizzes_data,
+        }
+
+        content_json = json.dumps(export, ensure_ascii=False, indent=2)
+        file_hash = hashlib.sha256(content_json.encode()).hexdigest()
+        now = timezone.now()
+        DataRequest.objects.create(user=user, status="answered", answered_at=now, file_hash=file_hash)
+        timestamp = now.strftime("%Y%m%d_%H%M%S")
+
+        if fmt == "csv":
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow([
+                "quiz_id", "titre", "score", "créé_le",
+                "question", "option_0", "option_1", "option_2", "option_3",
+                "bonne_réponse", "réponse_donnée",
+            ])
+            for quiz in quizzes_data:
+                for q in quiz["questions"]:
+                    writer.writerow([
+                        quiz["id"],
+                        quiz["title"],
+                        quiz["score"] if quiz["score"] is not None else "",
+                        quiz["created_at"],
+                        q["prompt"],
+                        *q["options"],
+                        q["correct_index"],
+                        q["selected_index"] if q["selected_index"] is not None else "",
+                    ])
+            response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = f'attachment; filename="edututor_export_{timestamp}.csv"'
+            return response
+
+        response = HttpResponse(content_json, content_type="application/json; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="edututor_export_{timestamp}.json"'
+        return response
 
 
 class ChangePasswordView(APIView):

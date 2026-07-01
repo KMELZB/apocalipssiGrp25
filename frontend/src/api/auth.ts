@@ -126,3 +126,23 @@ export async function deleteAccount(password: string): Promise<void> {
   await api.delete('/accounts/profile/', { data: { password } });
   clearToken();
 }
+
+// ---------------------------------------------------------------------------
+// Export RGPD (J3-bis) : droit à la portabilité Art. 15
+// ---------------------------------------------------------------------------
+
+/** Télécharge toutes les données personnelles du user connecté (JSON ou CSV). */
+export async function exportData(format: 'json' | 'csv' = 'json'): Promise<void> {
+  const response = await api.get(`/accounts/me/export/?format=${format}`, {
+    responseType: 'blob',
+  });
+  const mimeType = format === 'csv' ? 'text/csv' : 'application/json';
+  const url = window.URL.createObjectURL(new Blob([response.data], { type: mimeType }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `edututor_export.${format}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}

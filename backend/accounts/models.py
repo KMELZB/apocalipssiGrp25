@@ -42,3 +42,31 @@ def get_or_create_profile(user) -> Profile:
     """
     profile, _ = Profile.objects.get_or_create(user=user)
     return profile
+
+
+class DataRequest(models.Model):
+    """Trace chaque demande d'accès aux données (SAR — Subject Access Request, Art. 15 RGPD)."""
+
+    STATUS_CHOICES = [
+        ("received", "Reçue"),
+        ("in_progress", "En cours"),
+        ("answered", "Répondue"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="data_requests",
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="received")
+    answered_at = models.DateTimeField(null=True, blank=True)
+    file_hash = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ["-requested_at"]
+        verbose_name = "Demande d'accès (SAR)"
+        verbose_name_plural = "Demandes d'accès (SAR)"
+
+    def __str__(self) -> str:
+        return f"SAR<{self.user.email}> — {self.status}"
