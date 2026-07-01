@@ -17,7 +17,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { changePassword, deleteAccount, updateProfile } from '@/api/auth';
+import { changePassword, deleteAccount, exportData, updateProfile } from '@/api/auth';
 import { getApiErrorMessage } from '@/api/errors';
 
 export default function ProfilePage() {
@@ -45,6 +45,10 @@ export default function ProfilePage() {
   const [delConfirm, setDelConfirm] = useState(false);
   const [delErr, setDelErr] = useState<string | null>(null);
   const [delLoading, setDelLoading] = useState(false);
+
+  // --- Zone RGPD : export ---
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportErr, setExportErr] = useState<string | null>(null);
 
   const handleInfo = async (e: FormEvent) => {
     e.preventDefault();
@@ -81,6 +85,18 @@ export default function ProfilePage() {
       setPwdErr(getApiErrorMessage(err, 'Changement de mot de passe impossible.'));
     } finally {
       setPwdLoading(false);
+    }
+  };
+
+  const handleExport = async (format: 'json' | 'csv') => {
+    setExportErr(null);
+    setExportLoading(true);
+    try {
+      await exportData(format);
+    } catch (err) {
+      setExportErr(getApiErrorMessage(err, 'Export impossible.'));
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -220,20 +236,33 @@ export default function ProfilePage() {
         </form>
       </section>
 
-      {/* Placeholders RGPD / signalement (à compléter pendant la semaine) */}
-      <section className="card bg-slate-50">
-        <h2 className="text-lg font-semibold text-slate-900 mb-2">Mes données</h2>
-        <p className="text-sm text-slate-500 mb-4">
-          Fonctionnalités à construire pendant la semaine APOCAL'IPSSI.
+      {/* Zone RGPD : export données (J3-bis — Art. 15 droit à la portabilité) */}
+      <section className="card">
+        <h2 className="text-lg font-semibold text-slate-900 mb-2">Mes données (RGPD)</h2>
+        <p className="text-sm text-slate-600 mb-4">
+          Téléchargez toutes vos données personnelles conformément à l'Art. 15 RGPD.
         </p>
+        {exportErr && (
+          <div className="mb-4 p-3 bg-rose-50 border-l-4 border-rose-500 text-sm text-rose-900 rounded">
+            {exportErr}
+          </div>
+        )}
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            disabled
-            title="À implémenter (J3-bis) — droit à la portabilité RGPD"
-            className="btn-secondary opacity-60 cursor-not-allowed"
+            disabled={exportLoading}
+            onClick={() => handleExport('json')}
+            className="btn-secondary"
           >
-            Exporter mes données (bientôt)
+            {exportLoading ? 'Export en cours…' : 'Exporter mes données (JSON)'}
+          </button>
+          <button
+            type="button"
+            disabled={exportLoading}
+            onClick={() => handleExport('csv')}
+            className="btn-secondary"
+          >
+            {exportLoading ? 'Export en cours…' : 'Exporter mes données (CSV)'}
           </button>
           <button
             type="button"
