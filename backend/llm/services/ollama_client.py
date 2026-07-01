@@ -12,7 +12,7 @@ import requests
 from django.conf import settings
 
 from .base import LLMClient, LLMError
-from .quiz_prompt import build_full_prompt, parse_and_validate_quiz
+from .quiz_prompt import parse_and_validate_quiz
 
 
 class OllamaLLMClient(LLMClient):
@@ -29,11 +29,30 @@ class OllamaLLMClient(LLMClient):
         self.timeout = timeout or settings.OLLAMA_TIMEOUT
 
     def generate_quiz(self, source_text: str, title: str) -> list[dict]:
+<<<<<<< Updated upstream
         # Ollama /api/generate attend UN prompt unique (pas de séparation
         # system/user) : on concatène donc system + cours via build_full_prompt.
         prompt = build_full_prompt(source_text, title)
         raw = self._call_ollama(prompt)
         return parse_and_validate_quiz(raw)
+=======
+        from .quiz_prompt import SYSTEM_PROMPT, build_user_prompt
+
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": build_user_prompt(source_text, title)}
+        ]
+
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                raw = self._call_ollama(messages)
+                return parse_and_validate_quiz(raw)
+            except LLMError as e:
+                if attempt == max_retries - 1:
+                    raise e
+                continue
+>>>>>>> Stashed changes
 
     # ----- internals -----
 
