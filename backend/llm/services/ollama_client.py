@@ -29,21 +29,32 @@ class OllamaLLMClient(LLMClient):
         self.timeout = timeout or settings.OLLAMA_TIMEOUT
 
     def generate_quiz(self, source_text: str, title: str) -> list[dict]:
-        # Ollama /api/generate attend UN prompt unique (pas de séparation
-        # system/user) : on concatène donc system + cours via build_full_prompt.
-        prompt = build_full_prompt(source_text, title)
-        raw = self._call_ollama(prompt)
-        return parse_and_validate_quiz(raw)
+        from .quiz_prompt import SYSTEM_PROMPT, build_user_prompt
+        
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": build_user_prompt(source_text, title)}
+        ]
+
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                raw = self._call_ollama(messages)
+                return parse_and_validate_quiz(raw)
+            except LLMError as e:
+                if attempt == max_retries - 1:
+                    raise e
+                continue
 
     # ----- internals -----
 
-    def _call_ollama(self, prompt: str) -> str:
+    def _call_ollama(self, messages: list[dict]) -> str:
         try:
             response = requests.post(
-                f"{self.host}/api/generate",
+                f"{self.host}/api/chat",
                 json={
                     "model": self.model,
-                    "prompt": prompt,
+                    "messages": messages,
                     "stream": False,
                     "options": {"temperature": 0.4},  # peu de créativité : on veut du factuel
                     "format": "json",  # mode JSON strict d'Ollama si supporté
@@ -55,7 +66,7 @@ class OllamaLLMClient(LLMClient):
             raise LLMError(f"Ollama injoignable : {exc}") from exc
 
         data = response.json()
-        raw = data.get("response", "")
+        raw = data.get("message", {}).get("content", "")
         if not raw:
             raise LLMError("Ollama a renvoyé une réponse vide.")
         return raw
