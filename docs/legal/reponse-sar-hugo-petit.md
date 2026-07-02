@@ -49,7 +49,7 @@ d'introduire une réclamation auprès de la CNIL (www.cnil.fr).
 Nous restons à votre disposition et vous prions d'agréer, Monsieur Petit, nos
 salutations distinguées.
 
-*L'équipe EduTutor IA — Référent données*
+*L'équipe EduTutor IA — DPO (Délégué à la Protection des Données)*
 
 ---
 
